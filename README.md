@@ -1,6 +1,9 @@
 # ![Logo: a terminal with a foot shaped prompt](icons/hicolor/48x48/apps/foot.png) foot
 
 The fast, lightweight and minimalistic Wayland terminal emulator.
+For detailed documentation, configuration, and source, see: https://codeberg.org/dnkl/foot
+
+Original project note: This checkout is modified with Kitty Graphics Protocol support.
 
 [![CI status](https://ci.codeberg.org/api/badges/dnkl/foot/status.svg)](https://ci.codeberg.org/dnkl/foot)
 
@@ -68,6 +71,9 @@ The fast, lightweight and minimalistic Wayland terminal emulator.
 * [Sixel image support](https://en.wikipedia.org/wiki/Sixel)
 
   ![tux-with-foot](doc/sixel-tux-foot.png "Sixel screenshot")
+* [Kitty Graphics Protocol](https://sw.kovidgoyal.net/kitty/graphics-protocol/) support for inline images
+
+  ![kitty-graphics-example](doc/kitty-example.png "Kitty Graphics example")
 
 
 # Installing
