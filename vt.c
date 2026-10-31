@@ -629,6 +629,24 @@ action_osc_put(struct terminal *term, uint8_t c)
 }
 
 static void
+action_apc_start(struct terminal *term)
+{
+    apc_start(term);
+}
+
+static void
+action_apc_put(struct terminal *term, uint8_t c)
+{
+    apc_put(term, c);
+}
+
+static void
+action_apc_unhook(struct terminal *term)
+{
+    apc_unhook(term);
+}
+
+static void
 action_hook(struct terminal *term, uint8_t c)
 {
     dcs_hook(term, c);
@@ -796,7 +814,7 @@ state_escape_switch(struct terminal *term, uint8_t data)
     case 0x5b:                                                                            action_clear(term);              return STATE_CSI_ENTRY;
     case 0x5c:                                           action_esc_dispatch(term, data);                                  return STATE_GROUND;
     case 0x5d:                                                                            action_osc_start(term, data);    return STATE_OSC_STRING;
-    case 0x5e ... 0x5f:                                                                                                    return STATE_SOS_PM_APC_STRING;
+    case 0x5e ... 0x5f:                                  action_apc_start(term);                          return STATE_SOS_PM_APC_STRING;
     case 0x60 ... 0x7e:                                  action_esc_dispatch(term, data);                                  return STATE_GROUND;
     case 0x7f:                                           action_ignore(term);                                              return STATE_ESCAPE;
     }
@@ -1029,10 +1047,21 @@ state_sos_pm_apc_string_switch(struct terminal *term, uint8_t data)
         /*              exit                             current                          enter                            new state */
     case 0x00 ... 0x17:
     case 0x19:
-    case 0x1c ... 0x7f:                                  action_ignore(term);                                              return STATE_SOS_PM_APC_STRING;
-    }
+    case 0x1c ... 0x1f:                                  action_ignore(term);                                              return STATE_SOS_PM_APC_STRING;
 
-    return anywhere(term, data);
+    case 0x20 ... 0x7f:                                  action_apc_put(term, data);                                       return STATE_SOS_PM_APC_STRING;
+
+    /* Anywhere */
+    case 0x18:          action_apc_unhook(term);      action_execute(term, data);                                       return STATE_GROUND;
+    case 0x1a:          action_apc_unhook(term);      action_execute(term, data);                                       return STATE_GROUND;
+    case 0x1b:          action_apc_unhook(term);                                        action_clear(term);              return STATE_ESCAPE;
+
+    /* 8-bit C1 control characters */
+    case 0x9c:          action_apc_unhook(term);                                                                         return STATE_GROUND;
+    case 0x80 ... 0x9b:
+    case 0x9d ... 0x9f: action_ignore(term);                                              return STATE_SOS_PM_APC_STRING;
+    default:                                                                                                               return STATE_SOS_PM_APC_STRING;
+    }
 }
 
 static enum state

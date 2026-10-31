@@ -1941,6 +1941,9 @@ term_destroy(struct terminal *term)
 
     sixel_fini(term);
 
+    free(term->kitty_graphics.data);
+    term->kitty_graphics.data = NULL;
+
     term_ime_reset(term);
 
     grid_free(&term->normal);

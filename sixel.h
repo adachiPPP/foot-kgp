@@ -24,7 +24,11 @@ void sixel_sync_cache(const struct terminal *term, struct sixel *sixel);
 
 void sixel_reflow_grid(struct terminal *term, struct grid *grid);
 
-/* Shortcut for sixel_reflow_grid(normal) + sixel_reflow_grid(alt) */
+void sixel_add_image(
+    struct terminal *term,
+    int width, int height,
+    uint32_t *data, bool opaque);
+
 void sixel_reflow(struct terminal *term);
 
 /*

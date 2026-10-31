@@ -715,6 +715,7 @@ struct terminal {
             struct row *row;
             int col;
             bool hidden;
+            int row_idx;
         } last_cursor;
 
         struct buffer *last_buf;     /* Buffer we rendered to last time */
@@ -825,6 +826,17 @@ struct terminal {
 
     /* State, to handle chunked notifications */
     struct notification kitty_notification;
+
+    /* State, for kitty graphics protocol chunked transmissions */
+    struct {
+        char *data;
+        size_t size;
+        size_t cap;
+        int width;
+        int height;
+        int format;
+        bool active;
+    } kitty_graphics;
 
     /* Currently active notifications, from foot's perspective (their
        notification helper processes are still running) */

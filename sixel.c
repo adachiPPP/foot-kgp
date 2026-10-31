@@ -2226,3 +2226,114 @@ sixel_geometry_report_max(struct terminal *term)
     LOG_DBG("query response for max sixel geometry: %ux%u",
             max_width, max_height);
 }
+
+void
+sixel_add_image(struct terminal *term, int width, int height,
+               uint32_t *data, bool opaque)
+{
+    if (width <= 0 || height <= 0 || data == NULL)
+        return;
+
+    /* Clip to available grid space */
+    struct coord cursor = term->grid->cursor.point;
+
+    int max_rows = term->rows - cursor.row;
+    if (max_rows <= 0) {
+        free(data);
+        return;
+    }
+    int max_height = max_rows * term->cell_height;
+    if (height > max_height)
+        height = max_height;
+    if (height <= 0) {
+        free(data);
+        return;
+    }
+
+    const int rows = (height + term->cell_height - 1) / term->cell_height;
+    const int cols = (width + term->cell_width - 1) / term->cell_width;
+
+    /* Remove any existing sixels that overlap the new image */
+    tll_rforeach(term->grid->sixel_images, it) {
+        struct sixel *six = &it->item;
+        int six_end_row = six->pos.row + six->rows - 1;
+        int six_end_col = six->pos.col + six->cols - 1;
+        int new_end_row = cursor.row + rows - 1;
+        int new_end_col = cursor.col + cols - 1;
+
+        bool row_overlap = !(six_end_row < cursor.row || six->pos.row > new_end_row);
+        bool col_overlap = !(six_end_col < cursor.col || six->pos.col > new_end_col);
+
+        if (row_overlap && col_overlap) {
+            sixel_destroy(&it->item);
+            tll_remove(term->grid->sixel_images, it);
+        }
+    }
+
+    struct sixel image = {
+        .pix = NULL,
+        .width = -1,
+        .height = -1,
+        .rows = rows,
+        .cols = cols,
+        .pos = (struct coord){cursor.col, cursor.row},
+        .opaque = opaque,
+        .cell_width = term->cell_width,
+        .cell_height = term->cell_height,
+        .original = {
+            .data = data,
+            .pix = NULL,
+            .width = width,
+            .height = height,
+        },
+        .scaled = {
+            .data = NULL,
+            .pix = NULL,
+            .width = -1,
+            .height = -1,
+        },
+    };
+
+    image.original.pix = pixman_image_create_bits_no_clear(
+        PIXMAN_a8r8g8b8, image.original.width, image.original.height,
+        data, width * 4);
+
+    if (image.original.pix == NULL) {
+        free(data);
+        return;
+    }
+
+    image.pix = image.original.pix;
+    image.width = image.original.width;
+    image.height = image.original.height;
+    sixel_sync_cache(term, &image);
+
+
+    sixel_overwrite_by_rectangle(term, cursor.row, cursor.col, rows, cols);
+
+    for (int r = 0; r < rows; r++) {
+        int gr = (term->grid->offset + cursor.row + r) & (term->grid->num_rows - 1);
+        struct row *row = term->grid->rows[gr];
+        row->dirty = true;
+        for (int c = cursor.col; c < min(cursor.col + cols, term->cols); c++)
+            row->cells[c].attrs.clean = 0;
+    }
+
+    sixel_insert(term, image);
+
+    term->bits_affecting_ascii_printer.sixels =
+        tll_length(term->grid->sixel_images) > 0;
+    term_update_ascii_printer(term);
+
+    for (int i = 0; i < rows; i++)
+        term_linefeed(term);
+
+    {
+        int new_col = term->sixel.cursor_right_of_graphics
+            ? min(cursor.col + cols, term->cols - 1)
+            : cursor.col;
+        term->grid->cursor.point.col = new_col;
+        term->grid->cur_row = grid_row(
+            term->grid, term->grid->cursor.point.row);
+    }
+}

@@ -6,6 +6,7 @@
 #include "log.h"
 #include "foot-terminfo.h"
 #include "sixel.h"
+#include "kitty-graphics.h"
 #include "util.h"
 #include "vt.h"
 #include "xmalloc.h"
@@ -525,6 +526,50 @@ dcs_unhook(struct terminal *term)
 
     term->vt.dcs.unhook_handler = NULL;
     term->vt.dcs.put_handler = NULL;
+
+    free(term->vt.dcs.data);
+    term->vt.dcs.data = NULL;
+    term->vt.dcs.size = 0;
+    term->vt.dcs.idx = 0;
+}
+
+void
+apc_start(struct terminal *term)
+{
+    free(term->vt.dcs.data);
+    term->vt.dcs.data = NULL;
+    term->vt.dcs.size = 0;
+    term->vt.dcs.idx = 0;
+    term->vt.dcs.put_handler = NULL;
+    term->vt.dcs.unhook_handler = NULL;
+}
+
+void
+apc_put(struct terminal *term, uint8_t c)
+{
+    struct vt *vt = &term->vt;
+
+    /* Grow buffer exponentially */
+    if (vt->dcs.idx >= vt->dcs.size) {
+        size_t new_size = vt->dcs.size * 2;
+        if (new_size == 0)
+            new_size = 128;
+
+        if (!ensure_size(term, new_size))
+            return;
+    }
+
+    vt->dcs.data[vt->dcs.idx++] = c;
+}
+
+void
+apc_unhook(struct terminal *term)
+{
+    if (term->vt.dcs.idx > 0 && term->vt.dcs.data != NULL &&
+        term->vt.dcs.data[0] == 'G')
+    {
+        kitty_graphics(term, (const char *)term->vt.dcs.data, term->vt.dcs.idx);
+    }
 
     free(term->vt.dcs.data);
     term->vt.dcs.data = NULL;

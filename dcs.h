@@ -6,3 +6,7 @@
 void dcs_hook(struct terminal *term, uint8_t final);
 void dcs_put(struct terminal *term, uint8_t c);
 void dcs_unhook(struct terminal *term);
+
+void apc_start(struct terminal *term);
+void apc_put(struct terminal *term, uint8_t c);
+void apc_unhook(struct terminal *term);

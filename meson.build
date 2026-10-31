@@ -12,6 +12,14 @@ is_debug_build = get_option('buildtype').startswith('debug')
 
 cc = meson.get_compiler('c')
 
+# Kitty graphics: optional libpng for PNG support
+libpng = dependency('libpng', required: false)
+png_deps = []
+if libpng.found()
+  png_deps += libpng
+  add_project_arguments('-DHAVE_LIBPNG=1', language: 'c')
+endif
+
 # Newer clang versions warns when using __COUNTER__ without -std=c2y
 if cc.has_argument('-Wc2y-extensions')
   add_project_arguments('-Wno-c2y-extensions', language: 'c')
@@ -276,6 +284,7 @@ vtlib = static_library(
   'cursor-shape.c', 'cursor-shape.h',
   'csi.c', 'csi.h',
   'dcs.c', 'dcs.h',
+  'kitty-graphics.c', 'kitty-graphics.h',
   'macros.h',
   'osc.c', 'osc.h',
   'sixel.c', 'sixel.h',
@@ -283,7 +292,7 @@ vtlib = static_library(
   builtin_terminfo, srgb_funcs,
   wl_proto_src + wl_proto_headers,
   version,
-  dependencies: [libepoll, pixman, fcft, tllist, wayland_client, xkb, utf8proc],
+  dependencies: [libepoll, pixman, fcft, tllist, wayland_client, xkb, utf8proc] + png_deps,
   link_with: [common, misc],
 )
 
